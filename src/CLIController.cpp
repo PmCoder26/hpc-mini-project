@@ -24,7 +24,13 @@ void CLIController::start() {
         std::cout << "1. Run Massive Filter (Age >= 40, Perf >= 80)\n";
         std::cout << "2. Run Deep Aggregation (Total Payroll)\n";
         std::cout << "3. Run Multi-Table Hash Join\n";
-        std::cout << "4. Exit\n";
+        std::cout << "4. Parallel Merge Sort (Order Employees by Salary)\n";
+        std::cout << "5. Multi-Table Group By (Sum Salary per Department)\n";
+        std::cout << "6. Deep Temporal Filtering (Find Employees Absent >= 3 Times)\n";
+        std::cout << "7. Multi-Phase Subquery (Filter Europe Depts vs Avg Perf)\n";
+        std::cout << "8. Anomaly Detection Anti-Join (Find Ghost Attendance Logs)\n";
+        std::cout << "9. Thread Semantic Text Search (Employees named 'Smith')\n";
+        std::cout << "0. Exit\n";
         std::cout << "Select Query: ";
         if (!(std::cin >> choice)) {
             break; // Handle bad input
@@ -42,6 +48,30 @@ void CLIController::start() {
             std::cout << "Running Benchmark (Concurrent Hash Read)...\n";
             auto stats = optimizer->runHashJoin();
             printReport("Employees -> Departments Hash Join", stats);
+        } else if (choice == 4) {
+            std::cout << "Running Benchmark (Recursive Tasking)...\n";
+            auto stats = optimizer->runMergeSort();
+            printReport("Merge Sort (Salary DESC)", stats);
+        } else if (choice == 5) {
+            std::cout << "Running Benchmark (Thread-Local Hash Maps)...\n";
+            auto stats = optimizer->runDepartmentBurden();
+            printReport("Department Salary Map-Reduce", stats);
+        } else if (choice == 6) {
+            std::cout << "Running Benchmark (Temporal High-Absence Histogram)...\n";
+            auto stats = optimizer->runAbsenceFilter(3);
+            printReport("Absence Thresholding", stats);
+        } else if (choice == 7) {
+            std::cout << "Running Benchmark (Memory Barrier Dependencies)...\n";
+            auto stats = optimizer->runSubqueryAnalysis();
+            printReport("Nested Europe Dept Avg Filter", stats);
+        } else if (choice == 8) {
+            std::cout << "Running Benchmark (Set-Difference Misses)...\n";
+            auto stats = optimizer->runAntiJoin();
+            printReport("Ghost Logs Anti-Join", stats);
+        } else if (choice == 9) {
+            std::cout << "Running Benchmark (Deep Text Search)...\n";
+            auto stats = optimizer->runTextSearch("Smith");
+            printReport("Text Search (O(N*M))", stats);
         } else {
             std::cout << "Exiting...\n";
             break;

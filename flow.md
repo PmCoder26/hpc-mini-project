@@ -1,5 +1,5 @@
 # System Flows
-This document explicitly maps out the step-by-step logic for how the Object-Oriented components interact, as well as how the Sequential algorithms work versus how the OpenMP Parallel algorithms handle memory physically.
+This document explicitly maps out the step-by-step logic for how the Object-Oriented components interact, as well as how the Sequential algorithms work versus how the OpenMP Parallel algorithms handle physical memory architecture.
 
 ## 0. System Component Interaction Flow
 This flowchart maps exactly how the classes defined in `class_architecture.md` interact with each other during a user's session:
@@ -22,7 +22,6 @@ graph TD
 ---
 
 ## 1. Flow of Aggregation (`SUM`, `AVG`)
-*Calculates the total huge sum of salaries across 60 million payroll records.*
 
 ```mermaid
 graph TD
@@ -38,19 +37,12 @@ graph TD
     L3 -->|Reduces into| G
 ```
 
-### The Sequential Flow (1 Thread)
-1.  **Initialize Variables:** Create a global `double total_sum = 0;`
-2.  **The Loop:** A single CPU core executes a `for` loop starting from index `i = 0` up to `N-1`.
-3.  **Accumulation:** At every step, it reads `payroll_logs[i].net_paid` and adds it to `total_sum`.
-4.  **Completion:** The loop ends. Execution Time is measured.
-
-### The Parallel Flow (N Threads)
+### The Parallel Flow
 1.  **Initialize Variables:** Create a global `double total_sum = 0;`
 2.  **Thread Setup:** The program hits `#pragma omp parallel for reduction(+:total_sum)`.
-3.  **Array Chunking:** OpenMP divides the 60 million records into chunks.
+3.  **Array Chunking:** OpenMP divides the records into chunks.
 4.  **Local Accumulation:** OpenMP gives every thread its own private, isolated copy of `total_sum` (Preventing Race Conditions).
 5.  **Recombination (The Reduction Phase):** OpenMP safely adds the local sums together into the original global `total_sum`.
-6.  **Completion:** Execution time is measured.
 
 ---
 
@@ -66,12 +58,6 @@ graph TD
     V1 -->|#pragma omp critical| Final[Master Vector]
     V2 -->|#pragma omp critical| Final
 ```
-
-### The Sequential Flow
-1.  **Preparation:** Create an array `std::vector<int> matching_ids;`
-2.  **The Scan:** Loop from `i = 0` to `N-1`.
-3.  **The Condition Check:** `if(emp.age > 50 && emp.perf > 90)`
-4.  **Storage:** Use `matching_ids.push_back(emp.id)`.
 
 ### The Parallel Flow
 1.  **Preparation:** OpenMP cannot safely do a `push_back()` to a single array from multiple threads.
@@ -97,14 +83,71 @@ graph TD
     L2 -->|Combine| G
 ```
 
-### The Sequential Flow
-1.  **Hash Phase:** Loop over `Departments` and build Hash Map.
-2.  **Probe Phase:** Loop across the massive `Employees` array.
-3.  **Matching:** Look up `department_id` in the Hash Map.
-4.  **Merging:** Combine them and push to the final array.
-
 ### The Parallel Flow
 1.  **Hash Phase:** Build hash map sequentially (it takes very little time).
 2.  **Read-Only Broadcast:** The constructed Hash Map is locked to **Read-Only** mode.
 3.  **Concurrent Probing:** `#pragma omp parallel for` across the `Employees` array. All threads can safely read the `Departments` map simultaneously. 
-4.  **Merging:** Threads save results locally, combining them at the end inside a critical region.
+4.  **Merging:** Threads save results locally, combining them at the end.
+
+---
+
+## 4. Flow of Parallel Recursive Tasking (Merge Sort)
+
+```mermaid
+graph TD
+    A[Unsorted Employee Array] -->|#pragma omp task| L1(Left Half)
+    A -->|#pragma omp task| R1(Right Half)
+    L1 -->|#pragma omp task| L2(Quarter 1)
+    L1 -->|#pragma omp task| L3(Quarter 2)
+    R1 --> R2(Quarter 3)
+    R1 --> R3(Quarter 4)
+    L2 -->|#pragma omp taskwait| C1{Merge 1}
+    L3 -->|#pragma omp taskwait| C1
+    C1 --> Final[(Sorted Array)]
+```
+### The Parallel Flow
+1. The first thread encounters `#pragma omp single` to seed the root task.
+2. The root task spawns two sub-tasks (`#pragma omp task`) for the left and right halves of the array.
+3. Threads available in the pool pick up the tasks dynamically to sort sub-chunks.
+4. A `#pragma omp taskwait` barrier blocks combining until both children finish.
+
+---
+
+## 5. Flow of Deep Temporal Filtering (Histograms)
+Used for counting Absences and Multi-Table Map-Reducing (Group By).
+
+```mermaid
+graph TD
+    D[(Millions of Logs)] -->|Parallel Chunk| P[Threads]
+    P --> T1[Thread 1]
+    P --> T2[Thread 2]
+    T1 -->|Local Map| M1{{Hash Map: count++}}
+    T2 -->|Local Map| M2{{Hash Map: count++}}
+    M1 -.->|Global Loop| G{{Master Hash Map}}
+    M2 -.->|Global Loop| G
+```
+### The Parallel Flow
+1. We cannot use `reduction(+:sum)` because Hash Maps are dynamic.
+2. OpenMP creates a matrix of hash-maps (one Map for each thread).
+3. Threads populate their private Hash Maps without locking.
+4. We exit the parallel region and a sequential loop safely aggregates the `8 thread` maps into `1 Master` map.
+
+---
+
+## 6. Multi-Phase Dependencies (Subqueries)
+
+```mermaid
+graph TD
+    subgraph Wave 1: Reduction
+    A[Array] -->|parallel sum| G(Global Avg)
+    end
+    G --> B[Implicit Memory Barrier]
+    B --> C
+    subgraph Wave 2: Filtering
+    C[Array] --> |Read Global Avg| T1
+    end
+```
+### The Parallel Flow
+1. OpenMP fires an initial swarm of threads to Map-Reduce the "Average Performance Score".
+2. Because threads exit a `#pragma omp parallel` block, an implicit memory barrier is hit.
+3. The next `#pragma omp parallel` block opens. The threads are fully synchronized and correctly aware of the newly built average, avoiding race conditions.

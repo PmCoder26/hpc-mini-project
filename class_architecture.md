@@ -88,17 +88,18 @@ The baseline, single-threaded implementations of database operations used to mea
 ```cpp
 class SerialAlgorithms {
 public:
-    // Returns indices of employees matching a filter
+    // Phase 3 & 4
     static std::vector<int> filterEmployees(const std::vector<Employee>& records, int minAge, int minPerf);
-    
-    // Reduces payroll to calculate total financial output
     static double aggregatePayroll(const std::vector<Payroll>& records);
+    static std::vector<JoinResult> executeHashJoin(const std::vector<Employee>& emp, const std::vector<Department>& dept);
     
-    // Standard sorting algorithm
-    static void mergeSort(std::vector<Employee>& records, int left, int right);
-    
-    // Nested-loop or standard hash mapping for Joins
-    static void executeHashJoin(const std::vector<Employee>& emp, const std::vector<Department>& dept);
+    // Phase 7 - Advanced Algorithms
+    static void mergeSortEmployees(std::vector<Employee>& arr, int left, int right);
+    static std::vector<GroupByResult> groupSalaryByDepartment(const std::vector<Employee>& e, const std::vector<Department>& d);
+    static std::vector<int> findHighAbsenceEmployees(const std::vector<Attendance>& logs, const std::vector<Employee>& emps, int threshold);
+    static std::vector<Employee> runSubqueryAnalysis(const std::vector<Employee>& e, const std::vector<Department>& d);
+    static std::vector<int> runAntiJoin(const std::vector<Attendance>& logs, const std::vector<Employee>& e);
+    static std::vector<Employee> textSearch(const std::vector<Employee>& e, const std::string& pattern);
 };
 ```
 
@@ -107,17 +108,18 @@ The HPC Core. These methods mirror the actions of `SerialAlgorithms` but encapsu
 ```cpp
 class ParallelAlgorithms {
 public:
-    // Utilizes #pragma omp parallel for
+    // Phase 3 & 4
     static std::vector<int> filterEmployees(const std::vector<Employee>& records, int minAge, int minPerf);
-    
-    // Utilizes reduction(+:total)
     static double aggregatePayroll(const std::vector<Payroll>& records);
+    static std::vector<JoinResult> executeHashJoin(const std::vector<Employee>& emp, const std::vector<Department>& dept);
     
-    // Utilizes #pragma omp task for recursive sorting
-    static void parallelMergeSort(std::vector<Employee>& records, int left, int right);
-    
-    // Utilizes parallel array chunking over a Hash Map
-    static void executeHashJoin(const std::vector<Employee>& emp, const std::vector<Department>& dept);
+    // Phase 7 - Advanced Algorithms
+    static void mergeSortEmployees(std::vector<Employee>& arr, int left, int right);
+    static std::vector<GroupByResult> groupSalaryByDepartment(const std::vector<Employee>& e, const std::vector<Department>& d);
+    static std::vector<int> findHighAbsenceEmployees(const std::vector<Attendance>& logs, const std::vector<Employee>& emps, int threshold);
+    static std::vector<Employee> runSubqueryAnalysis(const std::vector<Employee>& e, const std::vector<Department>& d);
+    static std::vector<int> runAntiJoin(const std::vector<Attendance>& logs, const std::vector<Employee>& e);
+    static std::vector<Employee> textSearch(const std::vector<Employee>& e, const std::string& pattern);
 };
 ```
 
@@ -128,6 +130,7 @@ struct BenchmarkingStats {
     double serial_time_ms;
     double parallel_time_ms;
     double speedup;
+    double efficiency;
     bool results_validated;
 };
 
@@ -138,15 +141,18 @@ private:
 public:
     QueryOptimizer(DatabaseEngine* e) : engine(e) {}
 
-    // Executes the requested query (e.g., 1 for Filter, 2 for Join)
-    BenchmarkingStats executeQuery(int queryType);
+    // Phase 5 Methods
+    BenchmarkingStats runPayrollAggregation();
+    BenchmarkingStats runEmployeeFilter(int minAge, int minPerf);
+    BenchmarkingStats runHashJoin();
 
-private:
-    // Calculates Speedup = SerialTime / ParallelTime
-    double calculateSpeedup(double t_serial, double t_parallel);
-    
-    // Ensures parallel threads didn't cause race conditions
-    bool validateResults(const std::vector<int>& res1, const std::vector<int>& res2);
+    // Phase 7 Configured Pipelines
+    BenchmarkingStats runMergeSort();
+    BenchmarkingStats runDepartmentBurden();
+    BenchmarkingStats runAbsenceFilter(int threshold);
+    BenchmarkingStats runSubqueryAnalysis();
+    BenchmarkingStats runAntiJoin();
+    BenchmarkingStats runTextSearch(const std::string& pattern);
 };
 ```
 

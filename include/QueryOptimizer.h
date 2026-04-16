@@ -19,4 +19,12 @@ public:
     BenchmarkingStats runPayrollAggregation();
     BenchmarkingStats runEmployeeFilter(int minAge, int minPerf);
     BenchmarkingStats runHashJoin();
+
+    // Phase 7 Advanced Features
+    BenchmarkingStats runMergeSort();
+    BenchmarkingStats runDepartmentBurden();
+    BenchmarkingStats runAbsenceFilter(int threshold);
+    BenchmarkingStats runSubqueryAnalysis();
+    BenchmarkingStats runAntiJoin();
+    BenchmarkingStats runTextSearch(const std::string& pattern);
 };

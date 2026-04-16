@@ -29,24 +29,28 @@ Rather than writing to disk pages, the engine will read the CSV files directly i
     std::vector<AttendanceLog> logs; // 150 million items contiguous in RAM
     ```
 
-### B. Parallel Algorithms to be Implemented
+### B. Parallel Algorithms Implemented (Phase 1-7)
 
-To perform Database Query Optimization, we must implement parallel versions of standard Relational Algebra operations:
+To perform Database Query Optimization, we implemented parallel versions of 9 Relational Algebra operations:
 
 1.  **Parallel Filtering (The `WHERE` clause):**
-    *   *Technique:* Array chunking.
-    *   *OpenMP mechanism:* `#pragma omp parallel for`. The array of size `N` is split among `T` threads. Each thread filters its chunk of data `N/T`.
+    *   *OpenMP mechanism:* `#pragma omp parallel for` with Thread-Local Vectors and `#pragma omp critical` recombinations.
 2.  **Parallel Aggregation (The `SUM`, `AVG`, `COUNT` clauses):**
-    *   *Technique:* Map-Reduce logic. 
-    *   *OpenMP mechanism:* `#pragma omp parallel for reduction(+:total_bonus)`. This allows threads to safely add to a global total without locking mechanisms (avoiding Race Conditions).
-3.  **Parallel Join (The `JOIN` clause):**
-    *   *Technique:* Parallel Hash Join.
-    *   *Implementation:* 
-        1. *Build Phase:* Sequentially or partially parallel build a Hash Map of the smaller table (e.g., `Departments`).
-        2. *Probe Phase:* `#pragma omp parallel for` over the massive table (e.g., `Employees`) where multiple threads read the Hash Map concurrently.
+    *   *OpenMP mechanism:* `#pragma omp parallel for reduction(+:total_bonus)` avoiding Race Conditions.
+3.  **Parallel Join (The `HASH JOIN` clause):**
+    *   *Implementation:* Sequential Hash build followed by Parallel read-only concurrent Cache lookups.
 4.  **Parallel Sorting (The `ORDER BY` clause):**
-    *   *Technique:* Parallel Merge Sort.
-    *   *OpenMP mechanism:* OpenMP Tasks (`#pragma omp task`). Threads recursively split the array into halves until a base threshold, sort them, and then merge them back.
+    *   *OpenMP mechanism:* OpenMP Tasks (`#pragma omp task` and `taskwait`). Threads recursively chunk the vectors memory.
+5.  **Multi-Table Aggregation (`GROUP BY`):**
+    *   *Implementation:* Array chunking dynamically generating Thread-Local Hash Maps that are reduced globally.
+6.  **Deep Temporal Filtering (`HAVING COUNT`):**
+    *   *Implementation:* Multi-threaded log parsing using lock-free thread array frequency calculations.
+7.  **Multi-Phase Subqueries (The nested `SELECT`):**
+    *   *Implementation:* Launching a parallel reduction, creating an implicit Barrier Sync, and immediately triggering array reads based on the aggregated state.
+8.  **Anomaly Detection (`ANTI-JOIN`):**
+    *   *Implementation:* Extracting parallel misses in Set Differences (`std::unordered_map::find == end()`).
+9.  **Parallel Text Search (`LIKE`):**
+    *   *Implementation:* Running raw `O(N*M)` string traversal dynamically chunked over processing nodes.
 
 ## 3. Benchmarking & Metrics Gathering
 
