@@ -1,6 +1,7 @@
 #include "CLIController.h"
 #include <iostream>
 #include <iomanip>
+#include <fstream>
 #include <omp.h>
 
 void CLIController::printReport(const std::string& queryName, const std::string& description, const BenchmarkingStats& stats) {
@@ -16,6 +17,21 @@ void CLIController::printReport(const std::string& queryName, const std::string&
     std::cout << " -> Hardware Effic.:  " << stats.efficiency << "%\n";
     std::cout << " -> Data Validated:   " << (stats.results_validated ? "PASS (No Race Conditions)" : "FAIL") << "\n";
     std::cout << "============================================\n\n";
+
+    // Export metrics natively to CSV for external Python Analytics!
+    std::ifstream check_file("data/measurements.csv");
+    bool exists = check_file.good();
+    check_file.close();
+    
+    std::ofstream outfile("data/measurements.csv", std::ios_base::app);
+    if (outfile.is_open()) {
+        if (!exists) {
+            outfile << "Query_Name,Serial_Time_ms,Parallel_Time_ms,Speedup,Hardware_Efficiency\n";
+        }
+        outfile << queryName << "," << stats.serial_time_ms << "," << stats.parallel_time_ms << "," 
+                << stats.speedup << "," << stats.efficiency << "\n";
+        outfile.close();
+    }
 }
 
 void CLIController::start() {
