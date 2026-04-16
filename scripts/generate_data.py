@@ -1,9 +1,6 @@
 import csv
 import random
 import os
-from faker import Faker
-
-fake = Faker()
 
 def generate_departments(filename, num_records):
     regions = ['North America', 'Europe', 'Asia', 'South America', 'Africa', 'Oceania']
@@ -11,7 +8,7 @@ def generate_departments(filename, num_records):
         writer = csv.writer(csvfile)
         writer.writerow(['dept_id', 'dept_name', 'region'])
         for i in range(1, num_records + 1):
-            writer.writerow([i, fake.company() + " Dept", random.choice(regions)])
+            writer.writerow([i, f"Dept_{i}", random.choice(regions)])
 
 def generate_employees(filename, num_records, num_depts):
     with open(filename, 'w', newline='') as csvfile:
@@ -20,7 +17,7 @@ def generate_employees(filename, num_records, num_depts):
         for i in range(1, num_records + 1):
             writer.writerow([
                 i,
-                fake.name(),
+                f"Employee_Name_{i}",
                 random.randint(22, 65),
                 random.randint(1, num_depts),
                 round(random.uniform(40000.0, 150000.0), 2),
@@ -64,26 +61,27 @@ def generate_payroll(filename, num_records, num_emps):
 if __name__ == "__main__":
     print("Generating Mock Data...")
     
-    # Create data directory if it doesn't exist
-    os.makedirs('../data', exist_ok=True)
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    data_dir = os.path.join(base_dir, '../data')
+    os.makedirs(data_dir, exist_ok=True)
     
     # Starts with a smaller initial dataset for quick testing and validation!
     # Once the engine is built and verified, we will crank this up to millions.
-    DEPT_COUNT = 100
-    EMP_COUNT = 2000000         
-    ATTENDANCE_COUNT = 10000000
-    PAYROLL_COUNT = 6000000
+    DEPT_COUNT = 500
+    EMP_COUNT = 10000000         
+    ATTENDANCE_COUNT = 25000000
+    PAYROLL_COUNT = 15000000
     
-    generate_departments('../data/departments.csv', DEPT_COUNT)
+    generate_departments(os.path.join(data_dir, 'departments.csv'), DEPT_COUNT)
     print(f"[{DEPT_COUNT}] Departments Generated")
     
-    generate_employees('../data/employees.csv', EMP_COUNT, DEPT_COUNT)
+    generate_employees(os.path.join(data_dir, 'employees.csv'), EMP_COUNT, DEPT_COUNT)
     print(f"[{EMP_COUNT}] Employees Generated")
     
-    generate_attendance('../data/attendance.csv', ATTENDANCE_COUNT, EMP_COUNT)
+    generate_attendance(os.path.join(data_dir, 'attendance.csv'), ATTENDANCE_COUNT, EMP_COUNT)
     print(f"[{ATTENDANCE_COUNT}] Attendance Logs Generated")
     
-    generate_payroll('../data/payroll.csv', PAYROLL_COUNT, EMP_COUNT)
+    generate_payroll(os.path.join(data_dir, 'payroll.csv'), PAYROLL_COUNT, EMP_COUNT)
     print(f"[{PAYROLL_COUNT}] Payroll Transactions Generated")
     
     print("\n✅ All mock datasets successfully generated in the data/ folder.")
