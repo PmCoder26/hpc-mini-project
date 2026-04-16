@@ -5,7 +5,7 @@ class CLIController {
 private:
     QueryOptimizer* optimizer;
 
-    void printReport(const std::string& queryName, const BenchmarkingStats& stats);
+    void printReport(const std::string& queryName, const std::string& description, const BenchmarkingStats& stats);
 
 public:
     CLIController(QueryOptimizer* opt) : optimizer(opt) {}

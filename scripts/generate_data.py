@@ -70,9 +70,9 @@ if __name__ == "__main__":
     # Starts with a smaller initial dataset for quick testing and validation!
     # Once the engine is built and verified, we will crank this up to millions.
     DEPT_COUNT = 100
-    EMP_COUNT = 100000         
-    ATTENDANCE_COUNT = 500000
-    PAYROLL_COUNT = 300000
+    EMP_COUNT = 2000000         
+    ATTENDANCE_COUNT = 10000000
+    PAYROLL_COUNT = 6000000
     
     generate_departments('../data/departments.csv', DEPT_COUNT)
     print(f"[{DEPT_COUNT}] Departments Generated")
