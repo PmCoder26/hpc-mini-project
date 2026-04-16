@@ -41,47 +41,47 @@ void CLIController::start() {
             std::cout << "Running Benchmark (Chunking Array)...\n";
             auto stats = optimizer->runEmployeeFilter(40, 80);
             printReport("Employee Filtering", 
-                        "Tests standard array chunking `#pragma omp for` with thread-local vectors to avoid Data Races.", stats);
+                        "Filters employees based on criteria using OpenMP parallel loops to split the dataset evenly among threads, storing results locally before merging.", stats);
         } else if (choice == 2) {
             std::cout << "Running Benchmark (Map-Reduce Reduction)...\n";
             auto stats = optimizer->runPayrollAggregation();
             printReport("Payroll Aggregation", 
-                        "Tests OpenMP map-reduce limits using `reduction(+:var)` for lock-free memory arithmetic.", stats);
+                        "Calculates total payroll using OpenMP's lock-free reduction clause `reduction(+)`, allowing threads to add salaries concurrently without collisions.", stats);
         } else if (choice == 3) {
             std::cout << "Running Benchmark (Concurrent Hash Read)...\n";
             auto stats = optimizer->runHashJoin();
             printReport("Employees -> Departments Hash Join", 
-                        "Tests multi-threaded cache probing by locking a Hash Map to 'Read-Only' so threads don't crash.", stats);
+                        "Links employee records to their department details by performing parallel lookups in a read-only hash map for fast, crash-free data retrieval.", stats);
         } else if (choice == 4) {
             std::cout << "Running Benchmark (Recursive Tasking)...\n";
             auto stats = optimizer->runMergeSort();
             printReport("Merge Sort (Salary DESC)", 
-                        "Tests OpenMP `#pragma omp task` to break arrays into dynamic sub-nodes for parallel Sorting.", stats);
+                        "Sorts the database by salary using OpenMP task-based parallelism `omp task`, dynamically assigning chunked sorting tasks to idle threads.", stats);
         } else if (choice == 5) {
             std::cout << "Running Benchmark (Thread-Local Hash Maps)...\n";
             auto stats = optimizer->runDepartmentBurden();
             printReport("Department Salary Map-Reduce", 
-                        "Tests dynamic hashing via creating separate Thread-Local maps and safely uniting them.", stats);
+                        "Groups and sums salaries by department. Each thread builds a local hash map first, preventing deadlocks, before a final safe merge step.", stats);
         } else if (choice == 6) {
             std::cout << "Running Benchmark (Temporal High-Absence Histogram)...\n";
             auto stats = optimizer->runAbsenceFilter(3);
             printReport("Absence Thresholding", 
-                        "Tests calculating frequencies across huge datasets (500k logs) without triggering deadlocks.", stats);
+                        "Scans large attendance logs. Threads safely tally occurrences into private frequency maps before combining them to prevent race conditions.", stats);
         } else if (choice == 7) {
             std::cout << "Running Benchmark (Memory Barrier Dependencies)...\n";
             auto stats = optimizer->runSubqueryAnalysis();
             printReport("Nested Europe Dept Avg Filter", 
-                        "Tests forced synchronization by using implicit openMP thread barriers for nested math.", stats);
+                        "Executes a multi-stage query. OpenMP synchronization barriers guarantee the average performance is fully calculated before filtering departments.", stats);
         } else if (choice == 8) {
             std::cout << "Running Benchmark (Set-Difference Misses)...\n";
             auto stats = optimizer->runAntiJoin();
             printReport("Ghost Logs Anti-Join", 
-                        "Tests Hash-Miss performance by running Set Difference (A - B) at parallel speeds.", stats);
+                        "Detects data anomalies using fast parallel set difference (A - B), isolating 'ghost' attendance records via concurrent hash map lookups.", stats);
         } else if (choice == 9) {
             std::cout << "Running Benchmark (Deep Text Search)...\n";
             auto stats = optimizer->runTextSearch("Smith");
             printReport("Text Search (O(N*M))", 
-                        "Tests heavy CPU usage by forcing threads to iteratively scan raw strings (`std::string::find`).", stats);
+                        "Performs intensive multi-threaded substring searches to find specific names, distributing the heavy string-matching workload across all CPU cores.", stats);
         } else {
             std::cout << "Exiting...\n";
             break;
