@@ -2,86 +2,70 @@ import csv
 import random
 import os
 
-def generate_departments(filename, num_records):
-    regions = ['North America', 'Europe', 'Asia', 'South America', 'Africa', 'Oceania']
-    with open(filename, 'w', newline='') as csvfile:
-        writer = csv.writer(csvfile)
-        writer.writerow(['dept_id', 'dept_name', 'region'])
-        for i in range(1, num_records + 1):
-            writer.writerow([i, f"Dept_{i}", random.choice(regions)])
+NUM_DEPTS = 100
+NUM_EMPLOYEES = 1_000_000
+NUM_PAYROLL = 1_000_000
+NUM_ATTENDANCE = 2_000_000
 
-def generate_employees(filename, num_records, num_depts):
-    with open(filename, 'w', newline='') as csvfile:
-        writer = csv.writer(csvfile)
-        writer.writerow(['emp_id', 'name', 'age', 'department_id', 'base_salary', 'hire_year', 'performance_score'])
-        for i in range(1, num_records + 1):
-            writer.writerow([
-                i,
-                f"Employee_Name_{i}",
-                random.randint(22, 65),
-                random.randint(1, num_depts),
-                round(random.uniform(40000.0, 150000.0), 2),
-                random.randint(1995, 2023),
-                random.randint(1, 100)
-            ])
+DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data')
+os.makedirs(DATA_DIR, exist_ok=True)
 
-def generate_attendance(filename, num_records, num_emps):
+def generate_departments():
+    filepath = os.path.join(DATA_DIR, 'departments.csv')
+    print(f"Generating Departments ({NUM_DEPTS} rows)...")
+    with open(filepath, 'w', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow(['dept_id', 'dept_name'])
+        for i in range(1, NUM_DEPTS + 1):
+            writer.writerow([i, f"Department_{i}"])
+    print("Departments done.")
+
+def generate_employees():
+    filepath = os.path.join(DATA_DIR, 'employees.csv')
+    print(f"Generating Employees ({NUM_EMPLOYEES} rows)...")
+    with open(filepath, 'w', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow(['emp_id', 'emp_name', 'age', 'dept_id', 'salary'])
+        for i in range(1, NUM_EMPLOYEES + 1):
+            name = f"Employee_{i}"
+            age = random.randint(22, 65)
+            dept_id = random.randint(1, NUM_DEPTS)
+            salary = random.randint(30000, 200000)
+            writer.writerow([i, name, age, dept_id, salary])
+    print("Employees done.")
+
+def generate_payroll():
+    filepath = os.path.join(DATA_DIR, 'payroll.csv')
+    print(f"Generating Payroll ({NUM_PAYROLL} rows)...")
+    with open(filepath, 'w', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow(['payroll_id', 'emp_id', 'net_pay', 'tax_deduction'])
+        for i in range(1, NUM_PAYROLL + 1):
+            emp_id = random.randint(1, NUM_EMPLOYEES)
+            gross = random.randint(30000, 200000)
+            tax = int(gross * 0.25)
+            net_pay = gross - tax
+            writer.writerow([i, emp_id, net_pay, tax])
+    print("Payroll done.")
+
+def generate_attendance():
+    filepath = os.path.join(DATA_DIR, 'attendance.csv')
+    print(f"Generating Attendance ({NUM_ATTENDANCE} rows)...")
     statuses = ['Present', 'Absent', 'Leave']
-    with open(filename, 'w', newline='') as csvfile:
-        writer = csv.writer(csvfile)
-        writer.writerow(['log_id', 'emp_id', 'date_timestamp', 'hours_worked', 'status'])
-        for i in range(1, num_records + 1):
-            status = random.choices(statuses, weights=[85, 10, 5])[0]
-            hours = round(random.uniform(0.0, 12.0), 1) if status == 'Present' else 0.0
-            writer.writerow([
-                i,
-                random.randint(1, num_emps),
-                random.randint(1600000000, 1700000000), 
-                hours,
-                status
-            ])
-
-def generate_payroll(filename, num_records, num_emps):
-    with open(filename, 'w', newline='') as csvfile:
-        writer = csv.writer(csvfile)
-        writer.writerow(['transaction_id', 'emp_id', 'fiscal_month', 'bonus_amount', 'tax_deduction', 'net_paid'])
-        for i in range(1, num_records + 1):
-            bonus = round(random.uniform(0.0, 5000.0), 2) if random.random() > 0.8 else 0.0
-            net = round(random.uniform(3000.0, 12000.0) + bonus, 2)
-            tax = round(net * 0.25, 2)
-            writer.writerow([
-                i,
-                random.randint(1, num_emps),
-                random.randint(1, 12),
-                bonus,
-                tax,
-                round(net - tax, 2)
-            ])
+    with open(filepath, 'w', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow(['log_id', 'emp_id', 'date_timestamp', 'status'])
+        for i in range(1, NUM_ATTENDANCE + 1):
+            emp_id = random.randint(1, NUM_EMPLOYEES)
+            timestamp = 1700000000 + random.randint(0, 3000000)
+            status = random.choice(statuses)
+            writer.writerow([i, emp_id, timestamp, status])
+    print("Attendance done.")
 
 if __name__ == "__main__":
-    print("Generating Mock Data...")
-    
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    data_dir = os.path.join(base_dir, '../data')
-    os.makedirs(data_dir, exist_ok=True)
-    
-    # Starts with a smaller initial dataset for quick testing and validation!
-    # Once the engine is built and verified, we will crank this up to millions.
-    DEPT_COUNT = 500
-    EMP_COUNT = 10000000         
-    ATTENDANCE_COUNT = 25000000
-    PAYROLL_COUNT = 15000000
-    
-    generate_departments(os.path.join(data_dir, 'departments.csv'), DEPT_COUNT)
-    print(f"[{DEPT_COUNT}] Departments Generated")
-    
-    generate_employees(os.path.join(data_dir, 'employees.csv'), EMP_COUNT, DEPT_COUNT)
-    print(f"[{EMP_COUNT}] Employees Generated")
-    
-    generate_attendance(os.path.join(data_dir, 'attendance.csv'), ATTENDANCE_COUNT, EMP_COUNT)
-    print(f"[{ATTENDANCE_COUNT}] Attendance Logs Generated")
-    
-    generate_payroll(os.path.join(data_dir, 'payroll.csv'), PAYROLL_COUNT, EMP_COUNT)
-    print(f"[{PAYROLL_COUNT}] Payroll Transactions Generated")
-    
-    print("\n✅ All mock datasets successfully generated in the data/ folder.")
+    print("Starting generation...")
+    generate_departments()
+    generate_employees()
+    generate_payroll()
+    generate_attendance()
+    print("All mock data generated successfully!")

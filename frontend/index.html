@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HPC Admin Portal</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
+    <script src="app.js" defer></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar glass-panel">
+            <div class="logo">
+                <div class="engine-orb"></div>
+                <h2>Admin Portal</h2>
+            </div>
+            <div class="admin-badge" style="margin-top: -15px; margin-bottom: 10px; font-size: 0.75rem; color: var(--gpu-color); border: 1px solid var(--gpu-color); padding: 4px 8px; border-radius: 4px; display: inline-block; width: max-content;">
+                <span>Superadmin Access Active</span>
+            </div>
+            <nav class="nav-menu">
+                <ul>
+                    <li class="active" data-target="employees">Manage Employees</li>
+                    <li data-target="departments">Manage Departments</li>
+                    <li data-target="payroll">Audit Payroll</li>
+                    <li data-target="attendance">Audit Attendance</li>
+                </ul>
+            </nav>
+            <div class="status-box">
+                <p>Status: <span id="api-status" class="status-indicator online">Connecting...</span></p>
+                <p>CUDA: <span id="cuda-status" class="status-indicator">Checking...</span></p>
+            </div>
+        </aside>
+
+        <!-- Main Dashboard Area -->
+        <main class="dashboard">
+            <header class="header glass-panel">
+                <h1>HPC Admin Dashboard (<span id="active-entity-title">Employees</span>)</h1>
+                <p class="subtitle">Secure System Administration & PyCUDA Parallel Analytics</p>
+            </header>
+
+            <div class="content-grid">
+                <!-- Controls Panel -->
+                <section class="controls glass-panel">
+                    <h3>Filter Parameters</h3>
+                    
+                    <div id="filter-controls-container">
+                        <!-- Dynamic inputs injected by JS based on entity type -->
+                    </div>
+                    
+                    <button id="run-query-btn" class="glow-btn">
+                        <span>Execute Parallel Query</span>
+                        <div class="loader-spinner" style="display: none;"></div>
+                    </button>
+                </section>
+
+                <!-- Performance Metrics Panel -->
+                <section class="metrics glass-panel">
+                    <h3>Hardware Performance</h3>
+                    <div class="metrics-cards">
+                        <div class="card">
+                            <h4>CPU Serial</h4>
+                            <p id="cpu-time-val" class="time-val">-- ms</p>
+                        </div>
+                        <div class="card gpu-card">
+                            <h4>GPU PyCUDA</h4>
+                            <p id="gpu-time-val" class="time-val">-- ms</p>
+                        </div>
+                        <div class="card speedup-card">
+                            <h4>Speedup</h4>
+                            <p id="speedup-val" class="speedup-val">-- x</p>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="performanceChart"></canvas>
+                    </div>
+                </section>
+
+                <!-- Data Table Panel -->
+                <section class="data-view glass-panel full-width">
+                    <div class="table-header">
+                        <h3>Match Results</h3>
+                        <p>Showing <span id="matches-found">0</span> matches (Total Pool: <span id="total-rows">0</span>)</p>
+                    </div>
+                    <div class="table-container">
+                        <table id="results-table">
+                            <thead>
+                                <!-- Dynamic Headers -->
+                            </thead>
+                            <tbody>
+                                <!-- Dynamic Rows -->
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+</body>
+</html>
