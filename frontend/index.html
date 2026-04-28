@@ -47,7 +47,22 @@
                     <h3>Filter Parameters</h3>
                     
                     <div id="filter-controls-container">
-                        <!-- Dynamic inputs injected by JS based on entity type -->
+                        <div id="employees-filter" class="filter-group">
+                            <label for="emp-val">Filter Employees by minimum Salary</label>
+                            <input type="number" id="emp-val" placeholder="Enter salary (e.g. 50000)" />
+                        </div>
+                        <div id="departments-filter" class="filter-group" style="display: none;">
+                            <label for="dept-val">Filter Departments by Dept ID</label>
+                            <input type="number" id="dept-val" placeholder="Enter dept_id (e.g. 3)" />
+                        </div>
+                        <div id="payroll-filter" class="filter-group" style="display: none;">
+                            <label for="pay-val">Filter Payroll by Minimum Net Paid</label>
+                            <input type="number" id="pay-val" placeholder="Enter net_paid (e.g. 3000)" />
+                        </div>
+                        <div id="attendance-filter" class="filter-group" style="display: none;">
+                            <label for="att-val">Filter Attendance by Work Status</label>
+                            <input type="number" id="att-val" placeholder="Enter status (0 or 1)" />
+                        </div>
                     </div>
                     
                     <button id="run-query-btn" class="glow-btn">

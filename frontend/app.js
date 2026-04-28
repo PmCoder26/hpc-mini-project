@@ -1,4 +1,4 @@
-const API_BASE = 'https://ozone-mundane-subsystem.ngrok-free.dev/api';
+const API_BASE = 'https://ozone-mundane-subsystem.ngrok-free.dev';
 
 let performanceChart;
 let currentEntity = "employees";
@@ -7,22 +7,26 @@ const CONFIG = {
     employees: {
         endpoint: "/api/filter/employees",
         fields: ["emp-val"],
-        cols: ["emp_id", "age", "dept_id", "salary"]
+        cols: ["emp_id", "age", "dept_id", "salary"],
+        queryField: "salary"
     },
     departments: {
         endpoint: "/api/filter/departments",
         fields: ["dept-val"],
-        cols: ["dept_id"]
+        cols: ["dept_id"],
+        queryField: "dept_id"
     },
     payroll: {
         endpoint: "/api/filter/payroll",
         fields: ["pay-val"],
-        cols: ["payroll_id", "emp_id", "net_paid", "tax_deduction"]
+        cols: ["payroll_id", "emp_id", "net_paid", "tax_deduction"],
+        queryField: "net_paid"
     },
     attendance: {
         endpoint: "/api/filter/attendance",
         fields: ["att-val"],
-        cols: ["emp_id", "status"]
+        cols: ["emp_id", "status"],
+        queryField: "status"
     }
 };
 
@@ -31,6 +35,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     document.querySelectorAll(".nav-menu li").forEach(li => {
         li.addEventListener("click", () => {
+            document.querySelectorAll(".nav-menu li").forEach(el => el.classList.remove("active"));
+            li.classList.add("active");
             switchEntity(li.dataset.target);
         });
     });
@@ -44,7 +50,27 @@ document.addEventListener("DOMContentLoaded", () => {
 // ---------------- SWITCH ----------------
 function switchEntity(entity) {
     currentEntity = entity;
-    document.getElementById("active-entity-title").innerText = entity;
+    
+    // Update titles
+    document.getElementById("active-entity-title").innerText = entity.charAt(0).toUpperCase() + entity.slice(1);
+    
+    // Hide all filters explicitly
+    const filters = ["employees-filter", "departments-filter", "payroll-filter", "attendance-filter"];
+    filters.forEach(id => {
+        document.getElementById(id).style.display = "none";
+    });
+    
+    // Show active filter explicitly
+    document.getElementById(entity + "-filter").style.display = "flex";
+
+    // Update table headers dynamically
+    const cfg = CONFIG[entity];
+    const thead = document.querySelector("#results-table thead");
+    thead.innerHTML = "<tr>" + cfg.cols.map(c => `<th>${c}</th>`).join("") + "</tr>";
+    
+    // Clear previous results
+    const tbody = document.querySelector("#results-table tbody");
+    tbody.innerHTML = `<tr><td colspan="${cfg.cols.length}">Execute query to view data</td></tr>`;
 }
 
 
@@ -56,15 +82,27 @@ async function executeQuery() {
     const value = document.getElementById(inputId).value;
 
     const payload = {
-        field: "auto",
+        field: cfg.queryField,
         value: Number(value),
-        limit: 50
+        limit: 500000
     };
+
+    const btn = document.getElementById("run-query-btn");
+    const loader = btn.querySelector(".loader-spinner");
+    const span = btn.querySelector("span");
+
+    // Start loading
+    btn.disabled = true;
+    loader.style.display = "block";
+    span.innerText = "Processing...";
 
     try {
         const res = await fetch(API_BASE + cfg.endpoint, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { 
+                "Content-Type": "application/json",
+                "ngrok-skip-browser-warning": "true" 
+            },
             body: JSON.stringify(payload)
         });
 
@@ -80,6 +118,11 @@ async function executeQuery() {
     } catch (err) {
         console.error("FETCH ERROR:", err);
         alert("Error: " + err.message);
+    } finally {
+        // Stop loading
+        btn.disabled = false;
+        loader.style.display = "none";
+        span.innerText = "Execute Parallel Query";
     }
 }
 
