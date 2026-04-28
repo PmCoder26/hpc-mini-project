@@ -1,6 +1,6 @@
 import numpy as np
 
-# ================= SAFE CUDA CHECK =================
+# ================= CUDA CHECK =================
 try:
     import pycuda.driver as cuda
     import pycuda.autoinit
@@ -12,75 +12,88 @@ except Exception as e:
     CUDA_AVAILABLE = False
 
 
-# ================= FALLBACK SERIAL =================
+# ================= SERIAL FALLBACK (PURE PYTHON) =================
 class SerialFallback:
+
     @staticmethod
     def filter_gt(arr, threshold):
-        return np.where(arr > threshold)[0]
+        result = []
+        for i in range(len(arr)):
+            if arr[i] > threshold:
+                result.append(i)
+        return result
 
     @staticmethod
     def filter_eq(arr, target):
-        return np.where(arr == target)[0]
+        result = []
+        for i in range(len(arr)):
+            if arr[i] == target:
+                result.append(i)
+        return result
 
 
-# ================= CUDA KERNELS =================
+# ================= CUDA KERNEL =================
 if CUDA_AVAILABLE:
-    try:
-        kernel_code = r"""
-        extern "C" {
+    kernel_code = r"""
+    extern "C" {
 
-        __global__ void filter_gt_float(float *data, float threshold, int *out, int *count, int n) {
-            int i = blockIdx.x * blockDim.x + threadIdx.x;
-            if (i < n && data[i] > threshold) {
+    __global__ void filter_gt_compact(float *data, float threshold, int *out, int *count, int n) {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+
+        if (i < n) {
+            if (data[i] > threshold) {
                 int pos = atomicAdd(count, 1);
                 out[pos] = i;
             }
         }
+    }
 
-        __global__ void filter_eq_int(int *data, int target, int *out, int *count, int n) {
-            int i = blockIdx.x * blockDim.x + threadIdx.x;
-            if (i < n && data[i] == target) {
+    __global__ void filter_eq_compact(int *data, int target, int *out, int *count, int n) {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+
+        if (i < n) {
+            if (data[i] == target) {
                 int pos = atomicAdd(count, 1);
                 out[pos] = i;
             }
         }
+    }
 
-        }
-        """
+    }
+    """
 
-        mod = SourceModule(kernel_code)
-        filter_gt_float = mod.get_function("filter_gt_float")
-        filter_eq_int = mod.get_function("filter_eq_int")
-
-    except Exception as e:
-        print("[CUDA Kernel Compilation Failed]", e)
-        CUDA_AVAILABLE = False
+    mod = SourceModule(kernel_code)
+    filter_gt_compact = mod.get_function("filter_gt_compact")
+    filter_eq_compact = mod.get_function("filter_eq_compact")
 
 
 # ================= MAIN CLASS =================
 class ParallelAlgorithms:
 
     @staticmethod
-    def _execute(kernel, data, threshold, n, dtype="float"):
+    def _execute_compaction(kernel, arr, value, n, dtype="float"):
         if not CUDA_AVAILABLE:
             return None
 
         try:
-            data_gpu = cuda.mem_alloc(data.nbytes)
-            out_gpu = cuda.mem_alloc(data.nbytes)
+            # Allocate GPU memory
+            data_gpu = cuda.mem_alloc(arr.nbytes)
+            out_gpu = cuda.mem_alloc(n * np.int32().nbytes)
             count_gpu = cuda.mem_alloc(np.int32().nbytes)
 
-            count = np.zeros(1, dtype=np.int32)
+            # Initialize counter
+            cuda.memcpy_htod(count_gpu, np.array([0], dtype=np.int32))
 
-            cuda.memcpy_htod(data_gpu, data)
-            cuda.memcpy_htod(count_gpu, count)
+            # Copy input
+            cuda.memcpy_htod(data_gpu, arr)
 
             block = 256
             grid = (n + block - 1) // block
 
+            # Launch kernel
             kernel(
                 data_gpu,
-                np.float32(threshold) if dtype == "float" else np.int32(threshold),
+                np.float32(value) if dtype == "float" else np.int32(value),
                 out_gpu,
                 count_gpu,
                 np.int32(n),
@@ -88,17 +101,23 @@ class ParallelAlgorithms:
                 grid=(grid, 1),
             )
 
+            # Get result count
+            count = np.zeros(1, dtype=np.int32)
             cuda.memcpy_dtoh(count, count_gpu)
-            result = np.empty(count[0], dtype=np.int32)
+            result_size = int(count[0])
+
+            # Copy only valid portion
+            result = np.empty(result_size, dtype=np.int32)
             cuda.memcpy_dtoh(result, out_gpu)
 
-            return result
+            return result.tolist()
 
         except Exception as e:
-            print("[CUDA Runtime Error]", e)
+            print("[CUDA ERROR]", e)
             return None
 
-    # =============== EMPLOYEES ===============
+
+    # ================= EMPLOYEES =================
     @staticmethod
     def filterEmployees(employees, threshold):
         arr = employees["salary"]
@@ -107,13 +126,14 @@ class ParallelAlgorithms:
         if not CUDA_AVAILABLE:
             return SerialFallback.filter_gt(arr, threshold)
 
-        result = ParallelAlgorithms._execute(
-            filter_gt_float, arr, threshold, n, "float"
+        result = ParallelAlgorithms._execute_compaction(
+            filter_gt_compact, arr, threshold, n, "float"
         )
 
         return result if result is not None else SerialFallback.filter_gt(arr, threshold)
 
-    # =============== DEPARTMENTS ===============
+
+    # ================= DEPARTMENTS =================
     @staticmethod
     def filterDepartments(departments, target):
         arr = departments["dept_id"]
@@ -122,13 +142,14 @@ class ParallelAlgorithms:
         if not CUDA_AVAILABLE:
             return SerialFallback.filter_eq(arr, target)
 
-        result = ParallelAlgorithms._execute(
-            filter_eq_int, arr, target, n, "int"
+        result = ParallelAlgorithms._execute_compaction(
+            filter_eq_compact, arr, target, n, "int"
         )
 
         return result if result is not None else SerialFallback.filter_eq(arr, target)
 
-    # =============== PAYROLL ===============
+
+    # ================= PAYROLL =================
     @staticmethod
     def filterPayroll(payroll, threshold):
         arr = payroll["net_paid"]
@@ -137,13 +158,14 @@ class ParallelAlgorithms:
         if not CUDA_AVAILABLE:
             return SerialFallback.filter_gt(arr, threshold)
 
-        result = ParallelAlgorithms._execute(
-            filter_gt_float, arr, threshold, n, "float"
+        result = ParallelAlgorithms._execute_compaction(
+            filter_gt_compact, arr, threshold, n, "float"
         )
 
         return result if result is not None else SerialFallback.filter_gt(arr, threshold)
 
-    # =============== ATTENDANCE ===============
+
+    # ================= ATTENDANCE =================
     @staticmethod
     def filterAttendance(attendance, target):
         arr = attendance["status"]
@@ -152,8 +174,8 @@ class ParallelAlgorithms:
         if not CUDA_AVAILABLE:
             return SerialFallback.filter_eq(arr, target)
 
-        result = ParallelAlgorithms._execute(
-            filter_eq_int, arr, target, n, "int"
+        result = ParallelAlgorithms._execute_compaction(
+            filter_eq_compact, arr, target, n, "int"
         )
 
         return result if result is not None else SerialFallback.filter_eq(arr, target)
