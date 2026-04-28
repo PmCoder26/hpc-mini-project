@@ -195,7 +195,29 @@ function initChart() {
             }]
         },
         options: {
-            responsive: true
+            responsive: true,
+            scales: {
+                x: {
+                    ticks: {
+                        color: "#fff",
+                        font: { size: 16, weight: "bold" }
+                    }
+                },
+                y: {
+                    ticks: {
+                        color: "#fff",
+                        font: { size: 14 }
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    labels: {
+                        color: "#fff",
+                        font: { size: 14 }
+                    }
+                }
+            }
         }
     });
 }

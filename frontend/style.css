@@ -264,8 +264,8 @@ h3 {
 }
 
 .card h4 {
-    font-size: 0.85rem;
-    color: var(--text-muted);
+    font-size: 1.1rem;
+    color: #fff;
     text-transform: uppercase;
     letter-spacing: 1px;
     margin-bottom: 8px;
