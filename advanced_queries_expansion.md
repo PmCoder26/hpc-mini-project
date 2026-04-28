@@ -1,47 +1,34 @@
 # Phase 7: Advanced Query Expansion
 
-To scale the scope and make the project significantly more enterprise-grade, we will introduce 6 highly complex new database operations. These highlight different kinds of HPC architecture limits beyond simple array chunking.
+To scale the scope and make the project significantly more enterprise-grade, we propose integrating more complex database operations utilizing pure PyCUDA hardware acceleration. These highlight different kinds of HPC architecture challenges (like warp-divergence and shared-memory constraints) far beyond simple block thread filtering.
 
-## Proposed New Queries
+## Proposed New PyCUDA Queries
 
-### 1. Parallel Merge Sort (`ORDER BY`)
-*   **The Query:** Order the entire `Employees` table by `base_salary` descending.
-*   **HPC Challenge:** Sorting cannot be done with a simple `#pragma omp parallel for`. It requires OpenMP **Tasking** (`#pragma omp task`) to recursively split the array into halves, sort them concurrently across different threads, and merge them back together safely.
+### 1. Parallel Radix Sort (`ORDER BY`)
+*   **The Query:** Order the entire `Employees` table results dynamically by `base_salary` descending before returning to the frontend.
+*   **HPC Challenge:** Sorting millions of rows on a GPU is notoriously difficult due to sequential dependency. It requires multiple kernel launches (Parallel Radix Sort) and utilizing `__shared__` block memory to calculate prefixes and localized scans before broadcasting globally.
 
-### 2. Multi-Table Aggregation (`JOIN` + `GROUP BY`)
-*   **The Query:** Calculate the sum of all `base_salary` **grouped by** `department_name`.
-*   **HPC Challenge:** This requires reading from the `Employees` array, looking up the `Department` Hash Map, and safely reducing the sums into a shared frequency map without causing Data Race collisions between threads.
+### 2. Multi-Table Hash Join (`JOIN`)
+*   **The Query:** Link the `Employees` array to the `Departments` array to visually display the department's name instead of just the foreign key `dept_id`.
+*   **HPC Challenge:** Executing a fully parallel GPU Hash Join. The GPU must first construct a lock-free Hash Map in its VRAM using aggressive memory alignment and atomic operations, then concurrently Probe that hash map across 10,000 parallel threads.
 
-### 3. Deep Temporal Filtering (`HAVING COUNT`)
-*   **The Query:** Scan the massive `Attendance` log table to find the IDs of all employees who have been marked "Absent" more than `N` times.
-*   **HPC Challenge:** Threads must build partial Thread-Local Histograms (frequency tables of absences) and then safely combine all 8 thread histograms into one global Master Histogram.
+### 3. Deep Output Metrics Reduction (`SUM`, `AVG`)
+*   **The Query:** Calculate the total payroll `net_paid` across all logs.
+*   **HPC Challenge:** Building a Parallel Reduction tree. Instead of one thread looping and summing everything, arrays must be halved repeatedly using thread-local shared memory variables until one global thread produces the total scalar sum, effectively avoiding Memory Bank Conflicts.
 
-### 4. Multi-Phase Subqueries (The `IN` or nested `SELECT`)
-*   **The Query:** Find all employees working in a 'Europe' Department whose `performance_score` is STRICTLY LESS THAN the company-wide average performance.
-*   **HPC Challenge:** Execution depends on dependencies. The engine must first launch a parallel reduction to calculate the company average, set a memory barrier, and then immediately broadcast that average to a second wave of parallel threads checking the condition.
-
-### 5. Anomaly Detection (`ANTI-JOIN`)
-*   **The Query:** Scan the `Attendance` log to find any "Ghost Logs" (Logs belonging to an `emp_id` that does NOT exist in the `Employees` table).
-*   **HPC Challenge:** It requires executing a parallel Set Difference ($A - B$). Threads must concurrently probe the Hash Map and extract the misses rather than the hits.
-
-### 6. Parallel Text Semantic Searching (`LIKE '%str%'`)
-*   **The Query:** Find all Employees whose `name` contains the string "Smith" and `base_salary > 100000`.
-*   **HPC Challenge:** String traversal `std::string::find` is vastly more CPU-intensive than integer math. This will demonstrate how beautifully OpenMP scales when the workload per-row is extremely heavy.
+### 4. Concurrent Hardware Searching (`LIKE '%str%'`)
+*   **The Query:** Provide a text-box on the UI for administrators to perform fuzzy lookups on Employee `name` arrays.
+*   **HPC Challenge:** Parallel String matching is highly irregular. Because names vary in byte length, it usually results in "GPU Warp Divergence" (where some threads finish instantly and others are stuck running string checks). This demonstrates the challenge of non-contiguous data alignment on parallel hardware.
 
 ---
 
-## Code Execution Plan
+## Web API Integration Plan
 
-#### 1. Modify `SerialAlgorithms` / `ParallelAlgorithms`
-*   Add `executeMergeSort()`
-*   Add `groupSalaryByDepartment()`
-*   Add `findHighAbsenceEmployees()`
-*   Add `runSubqueryAnalysis()`
-*   Add `runAntiJoin()`
-*   Add `runTextSearch()`
+If implemented, these expansions will require the following architecture updates:
 
-#### 2. Modify `QueryOptimizer`
-*   Add the 6 target functions mapping to the underlying Serial/Parallel files to calculate benchmarking stats.
-
-#### 3. Modify `CLIController`
-*   Expand the terminal menu to support a massive list of **9 total analytics options**.
+1. **Backend Integration:**
+    * Add specific PyCUDA `SourceModule` strings containing `extern "C"` C++ kernels for reductions and radix sorting inside `parallel_algorithms.py`.
+    * Update `query_optimizer.py` to correctly allocate temporary memory buffers necessary for sorting.
+2. **Frontend Additions:**
+    * Add new toggle buttons on the `index.html` Sidebar.
+    * Expand `app.js` to parse these new complex outputs, specifically updating the chart logic to visualize multi-pass algorithms compared to CPU iteration.

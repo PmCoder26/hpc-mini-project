@@ -1,176 +1,126 @@
-# Class Architecture & Data Models
+# Web API and Module Architecture
 
-This document outlines the complete Object-Oriented design, Data Structures (Entities), and Core Classes including their method signatures for the **OpenMP HPC Analytics Engine**.
+This document maps out the Python file structure, API endpoints, Data representation (Pydantic Models), and Core classes for the **PyCUDA Analytics Engine**.
 
-## 1. Data Models (Entities / Structs)
-We use `struct` for our data models to keep things lightweight, cache-friendly, and perfectly contiguous in memory. These map perfectly to the CSV data.
+## 1. Pydantic Models (Entities)
+We use `pydantic.BaseModel` to strictly type-enforce the JSON payload coming in from the Web Dashboard.
 
-```cpp
-// Represents a single employee record
-struct Employee {
-    int emp_id;
-    std::string name;
-    int age;
-    int department_id;
-    float base_salary;
-    int hire_year;
-    int performance_score;
-};
-
-// Represents a department entity
-struct Department {
-    int dept_id;
-    std::string dept_name;
-    std::string region;
-};
-
-// Represents a single payroll transaction
-struct Payroll {
-    int transaction_id;
-    int emp_id;
-    int fiscal_month;
-    float bonus_amount;
-    float tax_deduction;
-    float net_paid;
-};
-
-// Represents an attendance log ping
-struct Attendance {
-    int log_id;
-    int emp_id;
-    int date_timestamp;
-    float hours_worked;
-    std::string status;
-};
+```python
+# Defined in main.py
+class FilterRequest(BaseModel):
+    field: str        # e.g., "salary", "net_paid", "dept_id"
+    value: float      # e.g., 50000, 3
+    limit: int = 100  # Limits the number of records returned to the web UI
 ```
 
 ---
 
-## 2. Core Functional Classes
+## 2. Core Python Classes
 
-The system logic is divided into modular classes. The central engine holds the state, while separate algorithm classes execute the logic to ensure a clean separation of concerns.
+The system logic is divided into highly decoupled Python files. The central engine holds state (dataframes), while algorithm classes provide the exact static methods needed by the optimizer.
 
-### `DataLoader`
-Utility class abstracting the File I/O. Its only job is to parse huge CSV lists and return constructed vectors.
-```cpp
-class DataLoader {
-public:
-    static std::vector<Employee> loadEmployees(const std::string& filepath);
-    static std::vector<Department> loadDepartments(const std::string& filepath);
-    static std::vector<Payroll> loadPayrollLogs(const std::string& filepath);
-    static std::vector<Attendance> loadAttendanceLogs(const std::string& filepath);
-};
+### `DatabaseEngine` (`backend/database_engine.py`)
+The central state hub that holds the loaded arrays in RAM. It abstracts Pandas File I/O.
+```python
+class DatabaseEngine:
+    def __init__(self):
+        # Stored as pandas.DataFrame natively
+        self.employees = None
+        self.departments = None
+        self.payroll = None
+        self.attendance = None
+
+    def initialize(self, directory="data"):
+        # Uses pd.read_csv to load 4 generated datasets...
+        pass
+        
+    # Getters returning DataFrames or exact series
+    def getEmployees(self): ...
+    def getDepartments(self): ...
 ```
 
-### `DatabaseEngine`
-The central state hub that holds the loaded arrays in RAM. It acts as the "In-Memory Database" repository.
-```cpp
-class DatabaseEngine {
-private:
-    std::vector<Employee> employees;
-    std::vector<Department> departments;
-    std::vector<Payroll> payroll_logs;
-    std::vector<Attendance> attendance_logs;
+### `SerialAlgorithms` (`backend/serial_algorithms.py`)
+The baseline, pure Python implementations of database operations. These contain manual `for` loops across properties.
+```python
+class SerialFallback:
+    @staticmethod
+    def filter_gt(arr, threshold):
+        # Loops across len(arr), appends matched indices.
+        pass
 
-public:
-    // Bootstraps the engine by invoking DataLoader
-    void initialize(const std::string& directoryPath);
-    
-    // Getters for the algorithm classes to read data
-    const std::vector<Employee>& getEmployees() const;
-    const std::vector<Payroll>& getPayrollLogs() const;
-    // ... other getters
-};
+    @staticmethod
+    def filter_eq(arr, target):
+        # Loops across len(arr), checking for exact target match.
+        pass
 ```
 
-### `SerialAlgorithms`
-The baseline, single-threaded implementations of database operations used to measure normal execution time.
-```cpp
-class SerialAlgorithms {
-public:
-    // Phase 3 & 4
-    static std::vector<int> filterEmployees(const std::vector<Employee>& records, int minAge, int minPerf);
-    static double aggregatePayroll(const std::vector<Payroll>& records);
-    static std::vector<JoinResult> executeHashJoin(const std::vector<Employee>& emp, const std::vector<Department>& dept);
-    
-    // Phase 7 - Advanced Algorithms
-    static void mergeSortEmployees(std::vector<Employee>& arr, int left, int right);
-    static std::vector<GroupByResult> groupSalaryByDepartment(const std::vector<Employee>& e, const std::vector<Department>& d);
-    static std::vector<int> findHighAbsenceEmployees(const std::vector<Attendance>& logs, const std::vector<Employee>& emps, int threshold);
-    static std::vector<Employee> runSubqueryAnalysis(const std::vector<Employee>& e, const std::vector<Department>& d);
-    static std::vector<int> runAntiJoin(const std::vector<Attendance>& logs, const std::vector<Employee>& e);
-    static std::vector<Employee> textSearch(const std::vector<Employee>& e, const std::string& pattern);
-};
+### `ParallelAlgorithms` (`backend/parallel_algorithms.py`)
+The HPC Core. This file intercepts PyCUDA drivers, executes C++ kernels as `SourceModule` and handles VRAM memory allocation.
+```python
+class ParallelAlgorithms:
+    @staticmethod
+    def _execute_compaction(kernel, arr, value, n, dtype="float"):
+        # 1. cuda.mem_alloc() array and counter memory
+        # 2. cuda.memcpy_htod()
+        # 3. Executes `kernel()`
+        # 4. cuda.memcpy_dtoh() result logic
+        pass
+
+    @staticmethod
+    def filterEmployees(employees, threshold):
+        # Executes filter_gt_compact kernel across CUDA device
+        pass
+
+    @staticmethod
+    def filterDepartments(departments, target):
+        # Executes filter_eq_compact kernel across CUDA device
+        pass
 ```
 
-### `ParallelAlgorithms`
-The HPC Core. These methods mirror the actions of `SerialAlgorithms` but encapsulate OpenMP pragmas (`#pragma omp parallel for`, `reduction`, `task`).
-```cpp
-class ParallelAlgorithms {
-public:
-    // Phase 3 & 4
-    static std::vector<int> filterEmployees(const std::vector<Employee>& records, int minAge, int minPerf);
-    static double aggregatePayroll(const std::vector<Payroll>& records);
-    static std::vector<JoinResult> executeHashJoin(const std::vector<Employee>& emp, const std::vector<Department>& dept);
-    
-    // Phase 7 - Advanced Algorithms
-    static void mergeSortEmployees(std::vector<Employee>& arr, int left, int right);
-    static std::vector<GroupByResult> groupSalaryByDepartment(const std::vector<Employee>& e, const std::vector<Department>& d);
-    static std::vector<int> findHighAbsenceEmployees(const std::vector<Attendance>& logs, const std::vector<Employee>& emps, int threshold);
-    static std::vector<Employee> runSubqueryAnalysis(const std::vector<Employee>& e, const std::vector<Department>& d);
-    static std::vector<int> runAntiJoin(const std::vector<Attendance>& logs, const std::vector<Employee>& e);
-    static std::vector<Employee> textSearch(const std::vector<Employee>& e, const std::string& pattern);
-};
+### `QueryOptimizer` (`backend/query_optimizer.py`)
+The analytical orchestrator. It receives data from the `DatabaseEngine`, runs BOTH serial and parallel methods sequentially, clocks their time with `time.perf_counter()`, and constructs the final JSON payload.
+```python
+class QueryOptimizer:
+    def __init__(self, engine):
+        self.engine = engine
+
+    # Shared orchestration wrapper
+    def _execute_and_compare(self, name, data, target, parallel_func, serial_func, limit=100):
+        # Generates metrics:
+        # {
+        #   "cpu_time_sec": ..., 
+        #   "gpu_time_sec": ..., 
+        #   "speedup_factor": ...,
+        #   "matches_found": ...
+        # }
+        pass
+
+    def runEmployeeFilter(self, salary_min, limit): ...
+    def runPayrollFilter(self, net_paid_min, limit): ...
 ```
 
-### `QueryOptimizer`
-The orchestrator. It receives a query type, runs both the serial and parallel versions, records their timings using high-precision clocks, and calculates the speedup.
-```cpp
-struct BenchmarkingStats {
-    double serial_time_ms;
-    double parallel_time_ms;
-    double speedup;
-    double efficiency;
-    bool results_validated;
-};
+---
 
-class QueryOptimizer {
-private:
-    DatabaseEngine* engine;
+## 3. Web Service Component (`backend/main.py`)
+The application entry point is built on FastAPI. It configures CORS (allowing the frontend to communicate), instantiates the global `DatabaseEngine` upon server start, and maps routes.
 
-public:
-    QueryOptimizer(DatabaseEngine* e) : engine(e) {}
+```python
+# FastAPI Endpoints
+@app.on_event("startup")
+async def startup_event(): ... # Triggers DatabaseEngine.initialize()
 
-    // Phase 5 Methods
-    BenchmarkingStats runPayrollAggregation();
-    BenchmarkingStats runEmployeeFilter(int minAge, int minPerf);
-    BenchmarkingStats runHashJoin();
+@app.get("/")
+def root(): ... # Sanity Check & returning CUDA_AVAILABLE bool
 
-    // Phase 7 Configured Pipelines
-    BenchmarkingStats runMergeSort();
-    BenchmarkingStats runDepartmentBurden();
-    BenchmarkingStats runAbsenceFilter(int threshold);
-    BenchmarkingStats runSubqueryAnalysis();
-    BenchmarkingStats runAntiJoin();
-    BenchmarkingStats runTextSearch(const std::string& pattern);
-};
-```
+@app.post("/api/filter/employees")
+def employees(req: FilterRequest): ...
 
-### `CLIController`
-Manages the terminal interface loop, keeping the `main()` function clean.
-```cpp
-class CLIController {
-private:
-    QueryOptimizer* optimizer;
+@app.post("/api/filter/departments")
+def departments(req: FilterRequest): ...
 
-public:
-    CLIController(QueryOptimizer* opt) : optimizer(opt) {}
+@app.post("/api/filter/payroll")
+def payroll(req: FilterRequest): ...
 
-    // Main loop mapping user input to execution
-    void startInteractiveSession();
-
-private:
-    void displayMenu();
-    void printMetricsReport(int queryType, const BenchmarkingStats& stats);
-};
+@app.post("/api/filter/attendance")
+def attendance(req: FilterRequest): ...
 ```

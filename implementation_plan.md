@@ -1,117 +1,75 @@
-# System Design: HPC Enterprise HR & Payroll Analytics Engine
+# System Design: GPU Accelerated HR Analytics Dashboard
 
-This document outlines the scope, data models, and execution flow for your High Performance Computing (HPC) mini-project: **Implement Parallelization of Database Query Optimization via an Enterprise HR & Payroll Analytics System**.
+This document outlines the scope, data models, and execution flow for your High Performance Computing (HPC) mini-project: **Parallelization of Database Query Optimization via an Enterprise HR Analytics System**.
 
 ## 1. Project Scope
 
-The project will simulate a massive, enterprise-level Human Resources and Payroll Data Warehouse. To demonstrate the necessity and power of parallelization, we will bypass standard SQL databases and build a custom, in-memory query execution engine using C++ and OpenMP capable of handling extremely complex, multi-table joins and data aggregations.
+The project simulates a massive, enterprise-level Human Resources and Payroll Data Warehouse. To demonstrate the necessity and power of GPU parallel computation, we bypass standard SQL databases and build a custom, in-memory query execution engine utilizing Python, NVIDIA PyCUDA, and a Web-based administrative dashboard.
 
 **In-Scope:**
-*   **Massive Data Generation:** A script to generate extremely large synthetic datasets (e.g., 5-10 million employee records).
-*   **In-Memory Database Engine:** A C++ engine that loads the data into arrays of structs to simulate database tables.
-*   **Parallel Query Operators:** Building algorithm implementations of database operations (Filtering, Sorting, Aggregation, Grouping, Joining).
-*   **Serial vs. Parallel Comparison:** Every operation will have a Serial (1 thread) and Parallel (N threads) implementation to calculate speedup and Amdahl's Law metrics.
-*   **Basic Query Optimizer:** A mechanism that evaluates parallel execution plans (e.g., deciding whether to filter before joining or join before filtering).
+*   **Massive Data Generation:** Scripts generating large synthetic datasets (millions of records).
+*   **In-Memory Database Engine:** A Python (Pandas/FastAPI) backend that loads data into RAM to eliminate Disk I/O bottlenecks.
+*   **GPU Parallel Query Operators:** Compiling and running C++ CUDA kernels via PyCUDA to perform blazing-fast Database operations across grids and blocks.
+*   **Web Dashboard:** An interactive HTML/JS frontend allowing a user to run queries and immediately visualize performance comparisons using Chart.js.
+*   **Serial vs. Parallel Benchmarking:** Every operation intercepts the request, runs a single-threaded Python CPU fallback, runs the PyCUDA multi-processor system, and compares the Speedup execution time.
 
 **Out-of-Scope:**
-*   A Graphical User Interface (GUI) or Frontend Web App (this is an HPC backend project).
-*   Persistent disk-page management (data is loaded into RAM).
-*   A full SQL string parser (we will trigger queries via command line flags or predefined C++ functions).
+*   Persistent disk-page management (data is strictly loaded into RAM).
+*   A full SQL string parser (queries are specific API endpoints triggered by UI interactions).
 
 ---
 
 ## 2. Expanded Data Model Schema
 
-To support complex queries (Multi-way Joins, Deep Aggregates, Time-Series Filtering), we will use an expanded relational schema reflecting a real corporate data warehouse.
+We use an expanded relational schema reflecting a real corporate data warehouse, processed natively as Columnar data.
 
-### Table 1: `Employees` (Target: 5,000,000 rows)
+### Table 1: `Employees`
 *   **`emp_id`** (Integer, Primary Key)
 *   **`name`** (String)
 *   **`age`** (Integer)
 *   **`department_id`** (Integer, Foreign Key)
-*   **`base_salary`** (Float)
-*   **`hire_year`** (Integer)
-*   **`performance_score`** (Integer, 1-100)
+*   **`salary`** (Float)
 
-### Table 2: `Departments` (Target: 100 rows)
+### Table 2: `Departments`
 *   **`dept_id`** (Integer, Primary Key)
-*   **`dept_name`** (String)
-*   **`region`** (String)
+*   **`manager_id`** (Integer)
+*   **`budget`** (Float)
 
-### Table 3: `Payroll_Transactions` (Target: 60,000,000 rows)
-*   **`transaction_id`** (Integer, Primary Key)
+### Table 3: `Payroll_Transactions`
+*   **`payroll_id`** (Integer, Primary Key)
 *   **`emp_id`** (Integer, Foreign Key)
-*   **`fiscal_month`** (Integer)
-*   **`bonus_amount`** (Float)
-*   **`tax_deduction`** (Float)
 *   **`net_paid`** (Float)
+*   **`tax_deduction`** (Float)
 
-### Table 4: `Attendance_Logs` (Target: 150,000,000 rows)
+### Table 4: `Attendance_Logs`
 *   **`log_id`** (Integer, Primary Key)
 *   **`emp_id`** (Integer, Foreign Key)
-*   **`date_timestamp`** (Integer)
-*   **`hours_worked`** (Float)
-*   **`status`** (String: "Present", "Absent", "Leave")
-
-### Table 5: `Employee_Skills` (Target: 15,000,000 rows)
-*   **`emp_id`** (Integer, Foreign Key)
-*   **`skill_name`** (String)
-*   **`proficiency_level`** (Integer, 1-5)
+*   **`status`** (Integer: 1 = Present, 0 = Absent)
 
 ---
 
 ## 3. System Flow Architecture
 
-The operational flow of the system during a demo or benchmark will follow these phases:
+The operational flow of the system during a demo or benchmark follows these phases:
 
-### Phase 1: Ingestion & Setup
-1.  **Data Generation:** Run Python script once to generate massive CSV files.
-2.  **Memory Load:** The C++ program starts and parses the CSV files, loading rows into contiguous memory blocks (`std::vector` of structs). 
+### Phase 1: Ingestion & Server Booting
+1.  **Data Generation:** The system ensures CSV files exist.
+2.  **API Loading:** The FastAPI Python program starts, reading the entire CSV corpus into memory (`pandas.DataFrame`) via the `DatabaseEngine`.
 
-### Phase 2: The Complex Query Inputs
-The user selects a massive query to run. The complexity of these queries justifies the need for HPC:
-*   *Query A (Deep Aggregation):* Calculate the total `net_paid` and average `bonus_amount` across all 60 million payroll records, grouped by `fiscal_month`.
-*   *Query B (Time-Series Filter):* Scan 150 million `Attendance_Logs` to find the `emp_id` of everyone who worked more than 200 hours in month 12.
-*   *Query C (Complex Multi-Way Join):* Find the names of Employees in the "Engineering" Department who have "C++" skill `proficiency_level == 5` and received a `bonus_amount` > $5000. (Requires joining Employees, Departments, Skills, and Payroll!).
-*   *Query D (Sorting massive results):* Sort the results of Query C by `net_paid` descending using Parallel Merge Sort.
+### Phase 2: The Dashboard Control Panel
+The user interacts with a secure, Dark-Glassmorphism styled HPC Admin Portal.
+1. The user navigates to a subsystem (e.g. "Manage Employees").
+2. The user inputs a numerical filter (e.g. `Filter Employees by minimum Salary: 50000`).
+3. The user clicks "Execute Parallel Query" initiating a REST API POST Request to the FastAPI backend.
 
-### Phase 3: The Optimizer & Execution (The HPC Core)
-1.  **Thread Setup:** The system reads the `OMP_NUM_THREADS` environment variable to determine how many CPU cores to use.
-2.  **Execution:** The system runs the chosen query through the OpenMP enabled algorithms:
-    *   `#pragma omp parallel for` (for array chunking during filters).
-    *   `#pragma omp parallel for reduction` (for safe aggregations).
-    *   Parallel Hash-building (for joins).
-    *   Parallel Merge-Sort (for ordering).
+### Phase 3: The PyCUDA Accelerator (The HPC Core)
+1.  **Hardware Transfer:** The `QueryOptimizer` marshals the column (e.g., `salary`) array to the NVIDIA graphical processing unit.
+2.  **Execution Execution:** The system launches the chosen query through the PyCUDA compiled logic (`filter_gt_compact` or `filter_eq_compact`).
+3.  **Result Aggregation:** The exact matched records are pulled off the GPU and returned to Python constraints.
 
 ### Phase 4: Benchmarking and Performance Comparison
-An integral part of this HPC project is demonstrating the hardware efficiency gained through OpenMP. For every database query executed, the system will systematically perform a rigorous comparison:
+An integral part of this HPC project is demonstrating the efficiency gained through CUDA grids.
 
-1.  **Sequential Execution:** The query is executed first using a standard, single-threaded algorithm (Sequential Algo). We will record the precise wall-clock execution time.
-2.  **Parallel Execution:** The identical query is executed using our OpenMP optimized multi-threaded algorithms. We will record the execution time across `N` threads.
-3.  **Validation & Metrics:** The system will verify that the parallel result exactly matches the sequential result, and then calculate High Performance Computing metrics like Speedup ($S = T_{serial} / T_{parallel}$) and Efficiency.
-
-**Example Output:**
-```text
-Query Execution Complete.
--------------------------
-Operation:       Filter & Aggregate
-Rows processed:  10,000,000
-Threads used:    8
-Sequential Time: 1.45 seconds
-Parallel Time:   0.22 seconds
-Speedup Factor:  6.5x
-Efficiency:      81.25%
--------------------------
-Data Validated:  PASS (Results match)
-```
-
----
-
-## User Review Required
-
-> [!IMPORTANT]
-> Please review the defined scope and models. 
-> 
-> *   Does this scale of data and schema look acceptable for your mini-project requirements?
-> *   Do you want to focus heavily on the C++ OpenMP implementation, or do you have a different language in mind?
-> *   If approved, our next steps will be to generate the Python mock-data script. Do you approve moving forward with implementation?
+1.  **Sequential Execution:** The query is executed first using simple Python iteration. We log the precise clock time.
+2.  **Validation & Metrics:** The system calculates Speedup ($S = T_{serial} / T_{parallel}$).
+3.  **Visual Output:** The Frontend renders a dynamic Bar Chart plotting the GPU hardware domination over the CPU, and generates a data-table of the exact matched results based on the `limit` query flag.
